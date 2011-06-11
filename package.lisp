@@ -4,8 +4,12 @@
 
 (defpackage :srfi-78
   (:use)
-
-  (:export))
+  (:export :check
+           :check-ec
+           :check-set-mode!
+           :check-reset!
+           :check-report
+           :check-passed?))
 
 (defpackage :srfi-78-internal
   (:use :srfi-78 :srfi-42 :cl :mbe :fiveam)
