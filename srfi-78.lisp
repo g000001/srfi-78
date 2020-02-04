@@ -1,6 +1,6 @@
 ;;;; srfi-78.lisp
 
-(cl:in-package :srfi-78-internal)
+(cl:in-package "https://github.com/g000001/srfi-78#internals")
 
 (def-suite srfi-78)
 
@@ -100,7 +100,7 @@
 (defun |check:report-expression| (expression)
   (terpri)
   (|check:write| expression)
-  (princ " :=> "))
+  (princ " => "))
 
 (defun |check:report-actual-result| (actual-result)
   (|check:write| actual-result)
@@ -180,10 +180,10 @@
   (values))
 
 (define-syntax check
-  (syntax-rules (:=>)
-    ((check expr :=> expected)
-     (check expr (:=> #'equalp) expected))
-    ((check expr (:=> equal) expected)
+  (syntax-rules (=>)
+    ((check expr => expected)
+     (check expr (=> #'equalp) expected))
+    ((check expr (=> equal) expected)
      (if (>= |check:mode| 1)
 	 (|check:proc| 'expr (lambda () expr) equal expected)))))
 
@@ -210,8 +210,8 @@
                                     expected-result)))))
 
 (define-syntax |check-ec:make|
-  (syntax-rules (:=>)
-    ((|check-ec:make| qualifiers expr (:=> equal) expected (arg ***))
+  (syntax-rules (=>)
+    ((|check-ec:make| qualifiers expr (=> equal) expected (arg ***))
      (if (>= |check:mode| 1)
          (|check:proc-ec|
 	  (let ((cases 0))
@@ -233,7 +233,7 @@
 		  (cons nil w)
 		  (list t
 			'(check-ec qualifiers
-				   expr (:=> equal)
+				   expr (=> equal)
 				   expected (arg ***))
 			nil
 		        nil
@@ -243,24 +243,24 @@
 ; of pairwise disjoint bound variables at this point.
 
 (define-syntax check-ec
-  (syntax-rules (nested :=>)
-    ((check-ec expr :=> expected)
-     (|check-ec:make| (nested) expr (:=> #'equalp) expected ()))
-    ((check-ec expr (:=> equal) expected)
-     (|check-ec:make| (nested) expr (:=> equal) expected ()))
-    ((check-ec expr :=> expected (arg ***))
-     (|check-ec:make| (nested) expr (:=> #'equalp) expected (arg ***)))
-    ((check-ec expr (:=> equal) expected (arg ***))
-     (|check-ec:make| (nested) expr (:=> equal) expected (arg ***)))
+  (syntax-rules (nested =>)
+    ((check-ec expr => expected)
+     (|check-ec:make| (nested) expr (=> #'equalp) expected ()))
+    ((check-ec expr (=> equal) expected)
+     (|check-ec:make| (nested) expr (=> equal) expected ()))
+    ((check-ec expr => expected (arg ***))
+     (|check-ec:make| (nested) expr (=> #'equalp) expected (arg ***)))
+    ((check-ec expr (=> equal) expected (arg ***))
+     (|check-ec:make| (nested) expr (=> equal) expected (arg ***)))
 
-    ((check-ec qualifiers expr :=> expected)
-     (|check-ec:make| qualifiers expr (:=> #'equalp) expected ()))
-    ((check-ec qualifiers expr (:=> equal) expected)
-     (|check-ec:make| qualifiers expr (:=> equal) expected ()))
-    ((check-ec qualifiers expr :=> expected (arg ***))
-     (|check-ec:make| qualifiers expr (:=> #'equalp) expected (arg ***)))
-    ((check-ec qualifiers expr (:=> equal) expected (arg ***))
-     (|check-ec:make| qualifiers expr (:=> equal) expected (arg ***)))
+    ((check-ec qualifiers expr => expected)
+     (|check-ec:make| qualifiers expr (=> #'equalp) expected ()))
+    ((check-ec qualifiers expr (=> equal) expected)
+     (|check-ec:make| qualifiers expr (=> equal) expected ()))
+    ((check-ec qualifiers expr => expected (arg ***))
+     (|check-ec:make| qualifiers expr (=> #'equalp) expected (arg ***)))
+    ((check-ec qualifiers expr (=> equal) expected (arg ***))
+     (|check-ec:make| qualifiers expr (=> equal) expected (arg ***)))
 
     ((check-ec (nested q1 ***) q etc ***)
      (check-ec (nested q1 *** q) etc ***))
@@ -272,61 +272,28 @@
   (macrolet ((sout (&body body)
                `(with-output-to-string (*standard-output*)
                   ,@body)))
-    (is (string= (sout (check (+ 1 1) :=> 2))
-                 "
-\(+ 1 1) :=> 2 ; correct
-"))
-    (is (string= (sout (check (+ 1 1) :=> 3))
-                 "
-\(+ 1 1) :=> 2 ; *** failed ***
- ; expected result: 3
-"))
-    (is (string= (sout (check (vector 1) :=> (vector 1)))
-                 "
-\(VECTOR 1) :=> #(1) ; correct
-"))
-    (is (string= (sout (check (vector 1) (:=> #'eq) (vector 1)))
-                 "
-\(VECTOR 1) :=> #(1) ; *** failed ***
- ; expected result: #(1)
-"))
-    (is (string= (sout (check-ec (+ 1 1) :=> 2))
-"
-\(CHECK-EC (NESTED) (+ 1 1) (:=> #'EQUALP) 2 NIL) :=> NIL ; correct
-"))
-    (is (string= (sout (check-ec (:- x 10) (+ x 1) :=> (+ x 1) (x)))
-                 "
-\(CHECK-EC (:- X 10) (+ X 1) (:=> #'EQUALP) (+ X 1) (X)) :=> NIL ; correct (10 cases checked)
-"))
-    (is (string= (sout (check-ec (:- e 10) (plusp (expt 2 e)) :=> t (e)))
-                 "
-\(CHECK-EC (:- E 10) (PLUSP (EXPT 2 E)) (:=> #'EQUALP) T (E)) :=> NIL ; correct (10 cases checked)
-"))
-    (is (string= (sout (check-ec (:- e 100)
-                                 (:let x (expt 2.0 e))
-                                 (= (+ x 1) x) :=> nil (x)))
-                 "
-\(LET ((X 1.6777216e7))
-  (= (+ X 1) X)) :=> T ; *** failed ***
- ; expected result: NIL
-" ))
-
-    (is (string= (sout (check-ec (:- e 100)
-                                 (:let x (expt 2.0 e))
-                                 (= (+ x 1) x) :=> nil))
-                 "
-\(LET ()
-  (= (+ X 1) X)) :=> T ; *** failed ***
- ; expected result: NIL
-"))
-
-
-    (is (string= (sout (check-ec (:- x 10) (:- y 10) (:- z 10)
-                                 (* x (+ y z)) :=> (+ (* x y) (* x z))
-                                 (x y z)))
-                 "
-\(CHECK-EC (NESTED (:- X 10) (:- Y 10) (:- Z 10)) (* X (+ Y Z)) (:=> #'EQUALP) (+ (* X Y) (* X Z)) (X Y Z)) :=> NIL ; correct (1000 cases checked)
-"))
+    (is (search "; correct" (sout (check (+ 1 1) => 2))))
+    (is (search "; *** failed ***" (sout (check (+ 1 1) => 3))))
+    (is (search "; correct" (sout (check (vector 1) => (vector 1)))))
+    (is (search "; *** failed ***"
+                (sout (check (vector 1) (=> #'eq) (vector 1)))))
+    (is (search "; correct" (sout (check-ec (+ 1 1) => 2))))
+    (is (search "; correct"
+                (sout (check-ec (:- x 10) (+ x 1) => (+ x 1) (x)))))
+    (is (search "; correct"
+                (sout (check-ec (:- e 10) (plusp (expt 2 e)) => t (e)))))
+    (is (search "; *** failed ***"
+                (sout (check-ec (:- e 100)
+                                (:let x (expt 2.0 e))
+                                (= (+ x 1) x) => nil (x)))))
+    (is (search "; *** failed ***"
+                (sout (check-ec (:- e 100)
+                                (:let x (expt 2.0 e))
+                                (= (+ x 1) x) => nil))))
+    (is (search "; correct"
+                (sout (check-ec (:- x 10) (:- y 10) (:- z 10)
+                                (* x (+ y z)) => (+ (* x y) (* x z))
+                                (x y z)))))
 
     (defun fib (n)
       (if (<= n 2)
@@ -334,17 +301,9 @@
           (+ (fib (- n 1))
              (fib (- n 2)))))
 
-    (is (string= (sout (check (fib 1) :=> 1))
-                 "
-\(FIB 1) :=> 1 ; correct
-"))
-
-    (is (string= (sout (check (fib 2) :=> 1))
-                 "
-\(FIB 2) :=> 1 ; correct
-"))
-    (is (string= (sout (check-ec (:- n 1 31)
-                                 (evenp (fib n)) :=> (= (mod n 3) 0) (n)))
-                 "
-\(CHECK-EC (:- N 1 31) (EVENP (FIB N)) (:=> #'EQUALP) (= (MOD N 3) 0) (N)) :=> NIL ; correct (30 cases checked)
-")) ))
+    (is (search "; correct" (sout (check (fib 1) => 1))))
+    (is (search "; correct" (sout (check (fib 2) => 1))))
+    (is (search "; correct"
+                (sout (check-ec (:- n 1 31)
+                                (evenp (fib n))
+                                => (= (mod n 3) 0) (n))))) ))
